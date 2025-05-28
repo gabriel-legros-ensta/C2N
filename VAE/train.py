@@ -6,18 +6,24 @@ from data_processing.dataload import load_normalize_data
 
 dataloader, scaler_x, scaler_y = load_normalize_data(batch_size=64)
 
+# Récupérer un batch
+data_iter = iter(dataloader)
+X_batch, y_batch = next(data_iter)  # X_batch shape = (batch_size, dim_x), y_batch shape = (batch_size, dim_y)
+print("X_batch shape:", X_batch.shape)
+print("y_batch shape:", y_batch.shape)
 
+# Dimensions des features et labels
+dim_x = X_batch.shape[1]
+dim_y = y_batch.shape[1]
+print("dim_x:", dim_x)
+print("dim_y:", dim_y)
 
-
-
-
-# Dimensions
-dim_x = 4
-dim_y = 5000
 input_dim = dim_x + dim_y
-latent_dim = 32
+latent_dim = 32 # Dimension latente à changer !
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("Using device:", device)
+print(torch.version.cuda)
 
 vae = VAE(input_dim, latent_dim).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), lr=1e-3)
