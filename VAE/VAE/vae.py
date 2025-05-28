@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 
-from encoder import Encoder
-from decoder import Decoder
+from .encoder import Encoder
+from .decoder import Decoder
 
 class VAE(nn.Module):
-    def __init__(self, input_dim, latent_dim):
+    def __init__(self, input_dim, latent_dim, hidden_dim, dropout):
         super().__init__()
-        self.encoder = Encoder(input_dim, latent_dim)
-        self.decoder = Decoder(latent_dim, input_dim)
+        self.encoder = Encoder(input_dim, latent_dim, hidden_dim=hidden_dim, dropout=dropout)
+        self.decoder = Decoder(latent_dim, input_dim, hidden_dim=hidden_dim, dropout=dropout)
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(0.5 * log_var)
@@ -20,4 +20,3 @@ class VAE(nn.Module):
         z = self.reparameterize(mu, log_var)
         recon = self.decoder(z)
         return recon, mu, log_var
-    

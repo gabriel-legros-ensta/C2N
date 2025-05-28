@@ -1,6 +1,7 @@
 import torch
 # from VAE.vae import VAE
 from loss import loss
+from optimisation.optimisation import run_optuna
 from data_processing.dataload import load_normalize_data
 import json
 
@@ -13,7 +14,10 @@ with open("best_params.json", "r") as f:
 latent_dim = best_params["latent_dim"]
 hidden_dim = best_params["hidden_dim"]
 lr = best_params["lr"]
-print
+print("Best parameters found:")
+print("Latent dimension:", latent_dim)
+print("Hidden dimension:", hidden_dim)
+print("Learning rate:", lr)
 
 # ============================================================
 # Chargement et normalisation des données
