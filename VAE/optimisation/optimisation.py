@@ -8,7 +8,7 @@ from data_processing.dataload import load_normalize_data
 # Nouvelle version de la fonction objective pour Optuna
 # ============================================================
 
-def train_vae(model, dataloader, lr=1e-3, device="cpu", epochs=10):
+def train_vae(model, dataloader, lr=1e-3, device="cpu", epochs=10, trial=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.train()
     total_loss = 0
@@ -19,9 +19,11 @@ def train_vae(model, dataloader, lr=1e-3, device="cpu", epochs=10):
 
         for x_batch, y_batch in dataloader:
             xy_batch = torch.cat([x_batch, y_batch], dim=1).to(device)
-
             recon, mu, log_var = model(xy_batch)
             loss = vae_loss(recon, xy_batch, mu, log_var)
+
+            if torch.isnan(loss) or torch.isinf(loss):
+                raise optuna.TrialPruned()
 
             optimizer.zero_grad()
             loss.backward()
@@ -29,9 +31,17 @@ def train_vae(model, dataloader, lr=1e-3, device="cpu", epochs=10):
 
             epoch_loss += loss.item()
             n_batches += 1
-            
-        print(f"Epoch {epoch+1}/{epochs}, loss: {epoch_loss / n_batches:.4f}")
+
+        avg_loss = epoch_loss / n_batches if n_batches > 0 else float('inf')
         total_loss += epoch_loss
+
+        # Reporter la loss à Optuna
+        if trial is not None:
+            trial.report(avg_loss, epoch)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+
+        print(f"Epoch {epoch+1}/{epochs}, loss: {avg_loss:.4f}")
 
     avg_loss = total_loss / (epochs * n_batches) if n_batches > 0 else float('inf')
     return avg_loss
@@ -58,7 +68,7 @@ def objective(trial):
                 hidden_dim=hidden_dim, dropout=dropout).to(device)
 
     # Entraîner
-    loss = train_vae(model, dataloader, lr=lr, device=device, epochs=1000)
+    loss = train_vae(model, dataloader, lr=lr, device=device, epochs=1000, trial=trial)
     return loss
 
 # ============================================================

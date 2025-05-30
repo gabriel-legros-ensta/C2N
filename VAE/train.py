@@ -49,7 +49,7 @@ print("Using device:", device)
 # ============================================================
 vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim, dropout=dropout).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), lr=1e-3)
-num_epochs = 1000
+num_epochs = 200
 
 # ============================================================
 # Boucle d'entraînement simplifiée
