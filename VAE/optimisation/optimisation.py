@@ -58,7 +58,7 @@ def objective(trial):
                 hidden_dim=hidden_dim, dropout=dropout).to(device)
 
     # Entraîner
-    loss = train_vae(model, dataloader, lr=lr, device=device, epochs=10)
+    loss = train_vae(model, dataloader, lr=lr, device=device, epochs=1000)
     return loss
 
 # ============================================================
