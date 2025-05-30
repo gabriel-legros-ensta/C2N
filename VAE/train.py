@@ -24,7 +24,7 @@ print("Dropout rate:", dropout)
 # ============================================================
 # Chargement et normalisation des données
 # ============================================================
-dataloader, scaler_x, scaler_y = load_normalize_data(batch_size=64)
+dataloader, scaler_x, scaler_y = load_normalize_data(batch_size=32)
 
 data_iter = iter(dataloader)
 X_batch, y_batch = next(data_iter)  # X_batch shape = (batch_size, dim_x), y_batch shape = (batch_size, dim_y)
@@ -48,7 +48,7 @@ print("Using device:", device)
 # Initialisation du modèle et de l'optimiseur
 # ============================================================
 vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim, dropout=dropout).to(device)
-optimizer = torch.optim.Adam(vae.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(vae.parameters(), lr=lr)
 num_epochs = 200
 
 # ============================================================
@@ -63,13 +63,13 @@ for epoch in range(num_epochs):
         xy_batch = torch.cat([x_batch, y_batch], dim=1).to(device)
 
         recon, mu, log_var = vae(xy_batch)
-        loss = vae_loss(recon, xy_batch, mu, log_var)
+        loss_batch = vae_loss(recon, xy_batch, mu, log_var)
 
         optimizer.zero_grad()
-        loss.backward()
+        loss_batch.backward()
         optimizer.step()
 
-        epoch_loss += loss.item()
+        epoch_loss += loss_batch.item()
 
     avg_loss = epoch_loss / len(dataloader)
     train_losses.append(avg_loss)  # Stocke la loss moyenne de l'epoch
