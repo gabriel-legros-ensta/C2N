@@ -4,6 +4,7 @@ from loss.loss import vae_loss
 from optimisation.optimisation import run_optuna
 from data_processing.dataload import load_normalize_data
 import json
+import matplotlib.pyplot as plt  # Ajout pour l'affichage de la courbe
 
 # ============================================================
 # Chargement des meilleurs paramètres
@@ -48,11 +49,13 @@ print("Using device:", device)
 # ============================================================
 vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim, dropout=dropout).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), lr=1e-3)
-num_epochs = 5000
+num_epochs = 1000
 
 # ============================================================
 # Boucle d'entraînement simplifiée
 # ============================================================
+train_losses = []  # Liste pour stocker la loss de chaque epoch
+
 vae.train()
 for epoch in range(num_epochs):
     epoch_loss = 0.0
@@ -69,7 +72,19 @@ for epoch in range(num_epochs):
         epoch_loss += loss.item()
 
     avg_loss = epoch_loss / len(dataloader)
+    train_losses.append(avg_loss)  # Stocke la loss moyenne de l'epoch
     print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+
+# ============================================================
+# Affichage de la courbe de loss d'entraînement
+# ============================================================
+plt.figure()
+plt.plot(train_losses, label="Train Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.title("Courbe de la loss d'entraînement")
+plt.legend()
+plt.show()
 
 # ============================================================
 # Évaluation du modèle après entraînement
