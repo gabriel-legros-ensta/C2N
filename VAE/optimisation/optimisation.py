@@ -3,18 +3,22 @@ import torch
 from VAE.vae import VAE  # ton module contenant Encoder, Decoder, VAE
 from loss.loss import vae_loss  # fonction de perte VAE
 from data_processing.dataload import load_normalize_data
+import optuna.visualization as vis
+import plotly
+print(plotly.__version__)
+
 
 # ============================================================
 # Nouvelle version de la fonction objective pour Optuna
 # ============================================================
 
-def train_vae(model, dataloader, lr=1e-3, device="cpu", epochs=10, trial=None):
+def train_vae(model, dataloader, lr, device="cpu", epochs=10, trial=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.train()
     total_loss = 0
 
     # Paramètres de stagnation (early stopping personnalisé)
-    patience = 10
+    patience = 50
     min_delta = 1e-4
     best_loss = float('inf')
     epochs_no_improve = 0
@@ -63,15 +67,20 @@ def train_vae(model, dataloader, lr=1e-3, device="cpu", epochs=10, trial=None):
 
 def objective(trial):
     # Paramètres d’architecture
-    latent_dim = trial.suggest_categorical("latent_dim", [8, 16, 32, 64])
-    hidden_dim = trial.suggest_categorical("hidden_dim", [128, 256, 512])
+    latent_dim = trial.suggest_categorical("latent_dim", [16, 32, 64])
+    hidden_dim = trial.suggest_categorical("hidden_dim", [256, 512, 1024])
     dropout = trial.suggest_float("dropout", 0.0, 0.5)
+    print("Using parameters for Optuna:")
+    print("Latent dimension:", latent_dim)  # Dimension latente     
+    print("Hidden dimension:", hidden_dim)  # Dimension cachée
+    print("Dropout rate:", dropout)  # Taux de dropout
 
     # Paramètres d’optimisation
     lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True)
+    print("Learning rate:", lr)  # Taux d'apprentissage
 
     # Charger données
-    dataloader, _, _ = load_normalize_data(batch_size=32)
+    dataloader, _, _ = load_normalize_data(batch_size=64)
     batch = next(iter(dataloader))
     input_dim = batch[0].shape[1] + batch[1].shape[1]
 
@@ -83,7 +92,7 @@ def objective(trial):
                 hidden_dim=hidden_dim, dropout=dropout).to(device)
 
     # Entraîner
-    loss = train_vae(model, dataloader, lr=lr, device=device, epochs=200, trial=trial)
+    loss = train_vae(model, dataloader, lr=lr, device=device, epochs=300, trial=trial)
     return loss
 
 # ============================================================
@@ -94,13 +103,38 @@ def run_optuna(n_trials=30, save_best=True):
     study = optuna.create_study(
         direction="minimize",
         pruner=optuna.pruners.MedianPruner(
-            n_startup_trials=0,   # Laisse les 0 premiers essais se faire entièrement
-            n_warmup_steps=10,    # Laisse les 10 premières époques d’un essai se dérouler sans pruning
-            interval_steps=1      # Vérifie à chaque epoch après warmup
+            n_startup_trials=0,
+            n_warmup_steps=30,
+            interval_steps=10
         )
     )
 
+    # Valeurs initiales choisies par toi
+    study.enqueue_trial({
+        "latent_dim": 64,
+        "hidden_dim": 512,
+        "dropout": 0.0008850,
+        "lr": 0.00011
+    })
+
+    # Tu peux en ajouter plusieurs si tu veux tester plusieurs configs de départ
+    # study.enqueue_trial({
+    # 'latent_dim': 64,
+    # 'hidden_dim': 1024,
+    # 'dropout': 0.0017742412691669177,
+    # 'lr': 0.0005959581533257725,
+    # })
+
+    # study.enqueue_trial({...})
+
     study.optimize(objective, n_trials=n_trials)
+
+        # Générer et afficher les graphiques d’optimisation
+    # fig1 = vis.plot_optimization_history(study)
+    # fig2 = vis.plot_param_importances(study)
+
+    # fig1.show(renderer="browser")
+    # fig2.show(renderer="browser")
 
     best_params = study.best_params
     if save_best:

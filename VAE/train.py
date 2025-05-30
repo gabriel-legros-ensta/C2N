@@ -24,7 +24,7 @@ print("Dropout rate:", dropout)
 # ============================================================
 # Chargement et normalisation des données
 # ============================================================
-dataloader, scaler_x, scaler_y = load_normalize_data(batch_size=32)
+dataloader, scaler_x, scaler_y = load_normalize_data(batch_size=64)
 
 data_iter = iter(dataloader)
 X_batch, y_batch = next(data_iter)  # X_batch shape = (batch_size, dim_x), y_batch shape = (batch_size, dim_y)
@@ -49,7 +49,7 @@ print("Using device:", device)
 # ============================================================
 vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim, dropout=dropout).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), lr=lr)
-num_epochs = 200
+num_epochs = 300
 
 # ============================================================
 # Boucle d'entraînement simplifiée
