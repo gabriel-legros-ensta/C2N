@@ -16,10 +16,9 @@ def train_vae(model, dataloader_train, dataloader_test, lr, device="cpu", epochs
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.to(device)
     model.train()
-    total_loss = 0
 
     # Paramètres de stagnation (early stopping personnalisé)
-    patience = 200
+    patience = 50
     min_delta = 1e-4
     best_loss = float('inf')
     epochs_no_improve = 0
@@ -73,43 +72,43 @@ def train_vae(model, dataloader_train, dataloader_test, lr, device="cpu", epochs
 
 def objective(trial):
     # Paramètres d’architecture
-    latent_dim = trial.suggest_categorical("latent_dim", [16, 32, 64])
-    hidden_dim = trial.suggest_categorical("hidden_dim", [256, 512, 1024])
-    dropout = trial.suggest_float("dropout", 0.0, 0.5)
-    print("Using parameters for Optuna:")
-    print("Latent dimension:", latent_dim)  # Dimension latente     
-    print("Hidden dimension:", hidden_dim)  # Dimension cachée
-    print("Dropout rate:", dropout)  # Taux de dropout
-
-    # Paramètres d’optimisation
+    #latent_dim = trial.suggest_categorical("latent_dim", [16, 32, 64])
+    latent_dim = 32
+    dropout = trial.suggest_float("dropout", 0.0, 0.05)
     lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True)
-    print("Learning rate:", lr)  # Taux d'apprentissage
+
+    # Nombre de couches cachées et leur taille
+    n_layers = trial.suggest_int("n_layers", 3, 6)
+    
+    hidden_dim_list = [trial.suggest_int(f"hidden_dim_{i+1}", 128, 4096) for i in range(n_layers)]
+    print("Trial parameters:")
+    print("latent_dim:", latent_dim)
+    print("dropout:", dropout)  
+    print("lr:", lr)
+    print("n_layers:", n_layers)
+    print("hidden_dim_list:", hidden_dim_list)
 
     # Charger données
-    dataset, _, _ = load_normalize_data(batch_size=None, return_dataset=True)  # Adapter la fonction pour retourner le dataset complet
-
-    # Split du dataset en train et test (80%/20%)
+    dataset, _, _ = load_normalize_data(batch_size=None, return_dataset=True)
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
-    torch.manual_seed(42)  # Pour la reproductibilité
+    torch.manual_seed(42)
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-
     dataloader_train = DataLoader(train_dataset, batch_size=64, shuffle=True)
     dataloader_test = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
-
     batch = next(iter(dataloader_train))
     input_dim = batch[0].shape[1] + batch[1].shape[1]
-
+    print("Input dimension:", input_dim)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device for Optuna:", device)
 
-    # Créer modèle
+    # Créer modèle avec la liste de hidden dims
     model = VAE(input_dim=input_dim, latent_dim=latent_dim,
-                hidden_dim=hidden_dim, dropout=dropout).to(device)
+                hidden_dim_list=hidden_dim_list, dropout=dropout).to(device)
 
     # Entraîner
-    loss = train_vae(model, dataloader_train, dataloader_test, lr=lr, device=device, epochs=2000, trial=trial)
+    loss = train_vae(model, dataloader_train, dataloader_test, lr=lr, device=device, epochs=1000, trial=trial)
     return loss
 
 # ============================================================
@@ -120,38 +119,23 @@ def run_optuna(n_trials=30, save_best=True):
     study = optuna.create_study(
         direction="minimize",
         pruner=optuna.pruners.HyperbandPruner(
-            min_resource=25,       # nombre minimal d'étapes (par ex. epochs) avant de pouvoir être élagué
-            max_resource=2000,     # nombre maximal d'étapes (epochs que tu passes à `train_vae`)
+            min_resource=50,       # nombre minimal d'étapes (par ex. epochs) avant de pouvoir être élagué
+            max_resource=1000,     # nombre maximal d'étapes (epochs que tu passes à `train_vae`)
             reduction_factor=4    # facteur de réduction (standard = 3)
         )
     )
 
-    # Valeurs initiales choisies par toi
     study.enqueue_trial({
-        "latent_dim": 64,
-        "hidden_dim": 512,
-        "dropout": 0.0008850,
-        "lr": 0.00011
+        "lr": 0.0001,
+        "hidden_dim_1": 2048,
+        "hidden_dim_2":  1024,
+        "hidden_dim_3": 512,
+        "hidden_dim_4":  256,
+        "hidden_dim_5": 128,
     })
 
-    # Tu peux en ajouter plusieurs si tu veux tester plusieurs configs de départ
-    # study.enqueue_trial({
-    # 'latent_dim': 64,
-    # 'hidden_dim': 1024,
-    # 'dropout': 0.0017742412691669177,
-    # 'lr': 0.0005959581533257725,
-    # })
-
-    # study.enqueue_trial({...})
 
     study.optimize(objective, n_trials=n_trials)
-
-        # Générer et afficher les graphiques d’optimisation
-    # fig1 = vis.plot_optimization_history(study)
-    # fig2 = vis.plot_param_importances(study)
-
-    # fig1.show(renderer="browser")
-    # fig2.show(renderer="browser")
 
     best_params = study.best_params
     if save_best:

@@ -5,10 +5,10 @@ from .encoder import Encoder
 from .decoder import Decoder
 
 class VAE(nn.Module):
-    def __init__(self, input_dim, latent_dim, hidden_dim, dropout):
+    def __init__(self, input_dim, latent_dim, hidden_dim_list, dropout):
         super().__init__()
-        self.encoder = Encoder(input_dim, latent_dim, hidden_dim=hidden_dim, dropout=dropout)
-        self.decoder = Decoder(latent_dim, input_dim, hidden_dim=hidden_dim, dropout=dropout)
+        self.encoder = Encoder(input_dim, latent_dim, hidden_dim_list=hidden_dim_list, dropout=dropout)
+        self.decoder = Decoder(latent_dim, input_dim, hidden_dim_list=hidden_dim_list[::-1], dropout=dropout)
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(0.5 * log_var)

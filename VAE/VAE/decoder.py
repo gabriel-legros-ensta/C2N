@@ -3,17 +3,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim, output_dim, hidden_dim=512, dropout=0.1):
+    def __init__(self, latent_dim, output_dim, hidden_dim_list=None, dropout=0.1):
         super().__init__()
-        self.fc1 = nn.Linear(latent_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, output_dim)
+        # Par défaut, utilise la même structure que l'encoder mais à l'envers
+
+        self.hidden_dim_list = hidden_dim_list
+
+        self.fc_layers = nn.ModuleList()
+        prev_dim = latent_dim
+        for h_dim in hidden_dim_list:
+            self.fc_layers.append(nn.Linear(prev_dim, h_dim))
+            prev_dim = h_dim
+
+        self.fc_out = nn.Linear(prev_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, z):
-        h = F.relu(self.fc1(z))
-        h = self.dropout(h)
-        h = F.relu(self.fc2(h))
-        h = self.dropout(h)
-        out = self.fc3(h)
+        h = z
+        for fc in self.fc_layers:
+            h = F.relu(fc(h))
+            h = self.dropout(h)
+        out = self.fc_out(h)
         return out
